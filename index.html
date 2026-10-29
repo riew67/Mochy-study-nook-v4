@@ -71,7 +71,7 @@
 
     <div class="max-w-6xl mx-auto space-y-6">
 
-        <!-- HEADER SECTION (SINGLE UNIFIED HEADER) -->
+        <!-- HEADER SECTION -->
         <header class="card-cute rounded-3xl p-5 md:p-6 flex flex-col md:flex-row justify-between items-center gap-4">
             <div class="flex items-center gap-4">
                 <div class="w-16 h-16 md:w-20 md:h-20 bg-pink-200 rounded-3xl flex items-center justify-center text-3xl md:text-4xl shadow-inner border-2 border-white">
@@ -416,6 +416,71 @@
         let lastAbsenDate = localStorage.getItem('mochi_last_absen') || '';
         let taskState = JSON.parse(localStorage.getItem('mochi_task_state') || '{}');
 
+        // TIMER LOGIC (REAL-TIME 30 MINS)
+        let timerInterval = null;
+        let timerSeconds = 1800; // 30 Menit = 1800 detik
+
+        function startTimer() {
+            if (timerInterval) return;
+            timerInterval = setInterval(() => {
+                if (timerSeconds > 0) {
+                    timerSeconds--;
+                    updateTimerDisplay();
+                } else {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                    alert("🎉 Sesi belajar 30 menit selesai! Kerja bagus, istirahat sejenak yuk! 🐰✨");
+                }
+            }, 1000);
+        }
+
+        function pauseTimer() {
+            clearInterval(timerInterval);
+            timerInterval = null;
+        }
+
+        function resetTimer() {
+            pauseTimer();
+            timerSeconds = 1800;
+            updateTimerDisplay();
+        }
+
+        function updateTimerDisplay() {
+            const display = document.getElementById('timerDisplay');
+            if (!display) return;
+            const minutes = Math.floor(timerSeconds / 60);
+            const seconds = timerSeconds % 60;
+            display.innerText = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+
+        function copyToClipboard(text) {
+            const dummy = document.createElement('textarea');
+            document.body.appendChild(dummy);
+            dummy.value = text;
+            dummy.select();
+            document.execCommand('copy');
+            document.body.removeChild(dummy);
+            alert('✨ Template email berhasil disalin ke clipboard!');
+        }
+
+        function speakText(text) {
+            if ('speechSynthesis' in window) {
+                const msg = new SpeechSynthesisUtterance(text);
+                msg.lang = 'en-US';
+                window.speechSynthesis.speak(msg);
+            } else {
+                alert('Browser kamu tidak mendukung audio speech.');
+            }
+        }
+
+        function checkAnswer(selectedIdx, correctIdx) {
+            if (selectedIdx === correctIdx) {
+                alert('🎉 Richtig! (Benar sekali! Keren banget!)');
+            } else {
+                alert('❌ Falsch! (Belum tepat, coba pilih jawaban lain ya!)');
+            }
+        }
+
         window.onload = function() {
             updateHeaderAndBanner();
             renderTabs();
@@ -548,7 +613,7 @@
                                     <input type="checkbox" ${currentTasks[2] ? 'checked' : ''} class="w-5 h-5 rounded-lg text-emerald-500 focus:ring-emerald-400 custom-checkbox cursor-pointer">
                                     <div>
                                         <p class="font-bold text-sm text-gray-800 ${currentTasks[2] ? 'line-through text-gray-400' : ''}">🎓 Kursus Mandiri Pilihanmu</p>
-                                        <p class="text-xs text-gray-500">Sub: Pelajari 1 Modul/Bab sesuai modul hari ini</p>
+                                        <p class="text-xs text-gray-500">Sub: Pelajari 1 Modul/Bab Baru Hari Ini</p>
                                     </div>
                                 </div>
                                 <span class="text-xs font-bold text-emerald-600 bg-emerald-100 px-2.5 py-1 rounded-lg">30 Menit</span>
@@ -565,92 +630,89 @@
                                 <span class="text-xs font-bold text-blue-500 bg-blue-100 px-2.5 py-1 rounded-lg">30 Menit</span>
                             </div>
 
-                            <div class="pt-2 space-y-1.5">
-                                <div class="flex justify-between text-xs font-bold text-gray-600">
-                                    <span>Progress Belajar (${currentDay})</span>
+                            <!-- Progress Bar -->
+                            <div class="pt-2">
+                                <div class="flex justify-between text-xs font-bold text-gray-600 mb-1">
+                                    <span>Progress Belajar Hari Ini (${currentDay})</span>
                                     <span>${hoursDone} / 2 Jam (${Math.round(progressPercent)}%)</span>
                                 </div>
-                                <div class="w-full h-4 bg-gray-100 rounded-full overflow-hidden p-0.5 border">
-                                    <div class="h-full bg-gradient-to-r from-pink-400 to-rose-500 rounded-full transition-all duration-500" style="width: ${progressPercent}%"></div>
+                                <div class="w-full bg-gray-200 h-3 rounded-full overflow-hidden">
+                                    <div class="bg-gradient-to-r from-pink-400 to-purple-500 h-full transition-all duration-300" style="width: ${progressPercent}%"></div>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="space-y-6">
-                            <div class="card-cute rounded-3xl p-6 text-center space-y-4">
-                                <h3 class="font-bold text-gray-700 flex items-center justify-center gap-2">
-                                    ⏱️ Timer Sesi 30 Menit
-                                </h3>
-                                <p class="text-xs text-gray-500">Fokus tanpa distrasi selama 30 menit!</p>
-                                
-                                <div class="w-36 h-36 mx-auto rounded-full border-8 border-pink-200 flex items-center justify-center bg-white shadow-inner">
-                                    <span class="text-3xl font-extrabold text-pink-600 font-display">30:00</span>
-                                </div>
+                        <!-- Timer Pomodoro Card -->
+                        <div class="card-cute rounded-3xl p-6 flex flex-col items-center justify-center text-center space-y-4">
+                            <h3 class="font-bold text-gray-800 flex items-center gap-2 text-base">
+                                ⏱️ Timer Sesi 30 Menit
+                            </h3>
+                            <p class="text-xs text-gray-500">Fokus tanpa distraksi selama 30 menit!</p>
 
-                                <div class="flex justify-center gap-2 pt-2">
-                                    <button class="bg-pink-500 text-white font-bold px-4 py-2 rounded-xl text-xs shadow hover:bg-pink-600">Start</button>
-                                    <button class="bg-purple-100 text-purple-700 font-bold px-4 py-2 rounded-xl text-xs hover:bg-purple-200">Pause</button>
-                                    <button class="bg-gray-100 text-gray-600 font-bold px-4 py-2 rounded-xl text-xs hover:bg-gray-200">Reset</button>
-                                </div>
+                            <div class="w-40 h-40 rounded-full bg-pink-100/60 border-4 border-pink-300 flex items-center justify-center my-2 shadow-inner">
+                                <span id="timerDisplay" class="text-4xl font-extrabold text-pink-600 font-mono tracking-wider">30:00</span>
                             </div>
 
-                            <div class="bg-gradient-to-br from-purple-100 to-pink-100 p-5 rounded-3xl border border-white text-center">
-                                <p class="text-xs text-purple-800 font-medium italic">"Terlewati satu hari bukan masalah! Yang terpenting kamu kembali belajar hari ini."</p>
-                                <span class="text-[10px] text-pink-600 font-bold mt-2 block">— Mochi Rabbit 🐰</span>
+                            <div class="flex gap-2 w-full justify-center">
+                                <button onclick="startTimer()" class="bg-pink-500 hover:bg-pink-600 text-white font-bold px-4 py-2 rounded-xl text-xs shadow transition active:scale-95">Start</button>
+                                <button onclick="pauseTimer()" class="bg-purple-100 hover:bg-purple-200 text-purple-700 font-bold px-4 py-2 rounded-xl text-xs transition active:scale-95">Pause</button>
+                                <button onclick="resetTimer()" class="bg-gray-200 hover:bg-gray-300 text-gray-600 font-bold px-4 py-2 rounded-xl text-xs transition active:scale-95">Reset</button>
                             </div>
                         </div>
                     </div>
                 `;
+                updateTimerDisplay();
             } else if (activeTab === 'en') {
                 container.innerHTML = `
                     <div class="card-cute rounded-3xl p-6 space-y-6">
-                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-3 border-pink-100 gap-2">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b pb-4 border-pink-100">
                             <div>
-                                <h2 class="text-xl font-bold text-gray-800">🇬🇧 English Lab (${currentDay})</h2>
-                                <p class="text-xs text-pink-600 font-semibold">Sub-Topik: ${data.en.sub}</p>
+                                <h2 class="text-xl font-bold text-pink-600">🇬🇧 English Lab (B1 → B2)</h2>
+                                <p class="text-xs text-gray-500">Materi harian terotomatisasi</p>
                             </div>
-                            <span class="bg-pink-100 text-pink-700 text-xs font-bold px-3 py-1.5 rounded-xl">Level B1 → B2</span>
+                            <span class="bg-pink-100 text-pink-700 font-bold text-xs px-3 py-1 rounded-full">Fokus Hari Ini: ${data.en.sub}</span>
                         </div>
 
+                        <!-- 3 Dedicated Sources -->
                         <div>
-                            <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2"><i class="fa-solid fa-compass text-pink-500"></i> 3 Sumber Rekomendasi Belajar Hari Ini</h3>
+                            <p class="text-xs font-bold text-gray-600 uppercase mb-3"><i class="fa-solid fa-link text-pink-500"></i> 3 Sumber Belajar Pilihan Hari Ini:</p>
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                                 ${data.en.sources.map(s => `
-                                    <a href="${s.url}" target="_blank" rel="noopener noreferrer" class="p-3 bg-white border-2 border-pink-100 hover:border-pink-300 rounded-2xl transition flex items-center justify-between group shadow-sm">
+                                    <a href="${s.url}" target="_blank" class="p-3 bg-white border border-pink-100 rounded-2xl hover:border-pink-300 hover:shadow-md transition flex flex-col justify-between">
                                         <div>
-                                            <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-pink-100 text-pink-600 uppercase">${s.type}</span>
-                                            <p class="text-xs font-bold text-gray-800 mt-1 line-clamp-1 group-hover:text-pink-600 transition">${s.name}</p>
+                                            <span class="text-[10px] uppercase font-extrabold text-pink-500 bg-pink-50 px-2 py-0.5 rounded-md">${s.type}</span>
+                                            <p class="font-bold text-xs text-gray-800 mt-2">${s.name}</p>
                                         </div>
-                                        <i class="fa-solid fa-arrow-up-right-from-square text-pink-400 text-xs group-hover:translate-x-0.5 transition"></i>
+                                        <span class="text-[11px] text-pink-600 font-semibold mt-3 flex items-center gap-1">Buka Sumber <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i></span>
                                     </a>
                                 `).join('')}
                             </div>
                         </div>
 
-                        <div class="bg-white p-5 rounded-2xl border-2 border-pink-100 space-y-3">
+                        <!-- Shadowing Practice -->
+                        <div class="bg-pink-50/60 p-4 rounded-2xl border border-pink-200 space-y-2">
                             <div class="flex justify-between items-center">
-                                <span class="text-xs font-bold text-pink-500 uppercase tracking-wider"><i class="fa-solid fa-volume-high"></i> Kalimat Shadowing Hari Ini</span>
-                                <button onclick="speakText('${data.en.shadowing}')" class="text-xs bg-pink-100 text-pink-600 px-3 py-1 rounded-xl font-bold hover:bg-pink-200">
-                                    <i class="fa-solid fa-play"></i> Putar Suara
+                                <span class="text-xs font-bold text-pink-700 uppercase"><i class="fa-solid fa-headphones"></i> Interactive Shadowing Practice</span>
+                                <button onclick="speakText('${data.en.shadowing.replace(/'/g, "\\'")}')" class="bg-pink-200 hover:bg-pink-300 text-pink-700 text-xs px-3 py-1 rounded-lg font-bold flex items-center gap-1 transition">
+                                    <i class="fa-solid fa-volume-high"></i> Play Audio
                                 </button>
                             </div>
-                            <p class="text-lg font-bold text-gray-800 italic">"${data.en.shadowing}"</p>
-                            <p class="text-sm text-gray-500">Arti: "${data.en.translation}"</p>
+                            <p class="text-base font-extrabold text-gray-800">"${data.en.shadowing}"</p>
+                            <p class="text-xs text-gray-500 italic">Arti: "${data.en.translation}"</p>
                         </div>
 
+                        <!-- Flashcards -->
                         <div>
-                            <h3 class="text-sm font-bold text-gray-700 mb-3"><i class="fa-solid fa-clone text-pink-500"></i> Flashcards Kosakata (${currentDay}) - Klik kartu untuk balik</h3>
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                ${data.en.cards.map((c, i) => `
-                                    <div onclick="this.classList.toggle('flipped')" class="flashcard h-32 cursor-pointer">
-                                        <div class="flashcard-inner relative w-full h-full rounded-2xl shadow-sm border-2 border-pink-200">
-                                            <div class="flashcard-front absolute inset-0 bg-white rounded-2xl flex flex-col items-center justify-center p-4 text-center">
-                                                <span class="text-xs text-gray-400 font-bold mb-1">KATA #${i+1}</span>
-                                                <span class="text-lg font-bold text-pink-600">${c.front}</span>
+                            <p class="text-xs font-bold text-gray-600 uppercase mb-3"><i class="fa-solid fa-clone text-pink-500"></i> Flashcard Vocab B2 (Klik untuk membalik)</p>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                ${data.en.cards.map(c => `
+                                    <div onclick="this.classList.toggle('flipped')" class="flashcard cursor-pointer h-28">
+                                        <div class="flashcard-inner w-full h-full relative text-center">
+                                            <div class="flashcard-front absolute w-full h-full bg-white border-2 border-pink-200 rounded-2xl flex items-center justify-center p-3 font-bold text-pink-600 shadow-sm">
+                                                ${c.front}
                                             </div>
-                                            <div class="flashcard-back absolute inset-0 bg-gradient-to-br from-pink-500 to-rose-400 text-white rounded-2xl flex flex-col items-center justify-center p-4 text-center">
-                                                <span class="text-xs opacity-80 font-bold mb-1">ARTI</span>
-                                                <span class="text-sm font-extrabold">${c.back}</span>
+                                            <div class="flashcard-back absolute w-full h-full bg-pink-500 text-white rounded-2xl flex items-center justify-center p-3 text-xs font-bold shadow-md">
+                                                ${c.back}
                                             </div>
                                         </div>
                                     </div>
@@ -662,136 +724,111 @@
             } else if (activeTab === 'de') {
                 container.innerHTML = `
                     <div class="card-cute rounded-3xl p-6 space-y-6">
-                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-3 border-purple-100 gap-2">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b pb-4 border-purple-100">
                             <div>
-                                <h2 class="text-xl font-bold text-gray-800">🇩🇪 Deutsch Lab (${currentDay})</h2>
-                                <p class="text-xs text-purple-600 font-semibold">Sub-Topik: ${data.de.sub}</p>
+                                <h2 class="text-xl font-bold text-purple-600">🇩🇪 Deutsch Lab (A1)</h2>
+                                <p class="text-xs text-gray-500">Materi harian terotomatisasi</p>
                             </div>
-                            <span class="bg-purple-100 text-purple-700 text-xs font-bold px-3 py-1.5 rounded-xl">Level A1</span>
+                            <span class="bg-purple-100 text-purple-700 font-bold text-xs px-3 py-1 rounded-full">Fokus Hari Ini: ${data.de.sub}</span>
                         </div>
 
+                        <!-- 3 Dedicated Sources -->
                         <div>
-                            <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2"><i class="fa-solid fa-compass text-purple-500"></i> 3 Sumber Rekomendasi Belajar Hari Ini</h3>
+                            <p class="text-xs font-bold text-gray-600 uppercase mb-3"><i class="fa-solid fa-link text-purple-500"></i> 3 Sumber Belajar Pilihan Hari Ini:</p>
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                                 ${data.de.sources.map(s => `
-                                    <a href="${s.url}" target="_blank" rel="noopener noreferrer" class="p-3 bg-white border-2 border-purple-100 hover:border-purple-300 rounded-2xl transition flex items-center justify-between group shadow-sm">
+                                    <a href="${s.url}" target="_blank" class="p-3 bg-white border border-purple-100 rounded-2xl hover:border-purple-300 hover:shadow-md transition flex flex-col justify-between">
                                         <div>
-                                            <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-purple-100 text-purple-600 uppercase">${s.type}</span>
-                                            <p class="text-xs font-bold text-gray-800 mt-1 line-clamp-1 group-hover:text-purple-600 transition">${s.name}</p>
+                                            <span class="text-[10px] uppercase font-extrabold text-purple-500 bg-purple-50 px-2 py-0.5 rounded-md">${s.type}</span>
+                                            <p class="font-bold text-xs text-gray-800 mt-2">${s.name}</p>
                                         </div>
-                                        <i class="fa-solid fa-arrow-up-right-from-square text-purple-400 text-xs group-hover:translate-x-0.5 transition"></i>
+                                        <span class="text-[11px] text-purple-600 font-semibold mt-3 flex items-center gap-1">Buka Sumber <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i></span>
                                     </a>
                                 `).join('')}
                             </div>
                         </div>
 
-                        <div class="bg-white p-6 rounded-2xl border-2 border-purple-100 space-y-4">
-                            <span class="text-xs font-bold text-purple-600 uppercase tracking-wider"><i class="fa-solid fa-circle-question"></i> Kuis Latihan Hari ${currentDay}</span>
-                            <h3 class="text-lg font-bold text-gray-800">${data.de.quiz.question}</h3>
-
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3" id="quizOptions">
+                        <!-- Mini Quiz A1 -->
+                        <div class="bg-purple-50/60 p-5 rounded-2xl border border-purple-200 space-y-4">
+                            <span class="text-xs font-bold text-purple-700 uppercase flex items-center gap-2"><i class="fa-solid fa-circle-question"></i> Mini Quiz A1 Hari Ini</span>
+                            <p class="text-base font-bold text-gray-800">${data.de.quiz.question}</p>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                 ${data.de.quiz.options.map((opt, idx) => `
-                                    <button onclick="checkQuiz(${idx}, ${data.de.quiz.answer}, '${data.de.quiz.explanation}')" class="p-3 rounded-xl border-2 border-gray-100 hover:border-purple-300 font-bold text-left text-sm text-gray-700 hover:bg-purple-50 transition">
-                                        ${String.fromCharCode(65 + idx)}. ${opt}
+                                    <button onclick="checkAnswer(${idx}, ${data.de.quiz.answer})" class="p-3 bg-white border border-purple-200 rounded-xl hover:bg-purple-100 text-left font-semibold text-xs transition">
+                                        ${opt}
                                     </button>
                                 `).join('')}
                             </div>
-
-                            <div id="quizFeedback" class="hidden p-4 rounded-xl text-sm font-semibold"></div>
+                            <p class="text-xs text-gray-500 bg-white/80 p-2.5 rounded-xl border border-purple-100"><i class="fa-solid fa-circle-info text-purple-400"></i> <b>Petunjuk:</b> ${data.de.quiz.explanation}</p>
                         </div>
                     </div>
                 `;
             } else if (activeTab === 'course') {
                 container.innerHTML = `
                     <div class="card-cute rounded-3xl p-6 space-y-6">
-                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-3 border-emerald-100 gap-2">
-                            <div>
-                                <h2 class="text-xl font-bold text-gray-800">🎓 Kursus Mandiri Pilihanmu</h2>
-                                <p class="text-xs text-emerald-600 font-semibold">Catat & selesaikan modul belajar pilihanmu hari ini</p>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <a href="https://www.coursera.org" target="_blank" rel="noopener noreferrer" class="bg-white border-2 border-emerald-200 hover:bg-emerald-50 text-emerald-600 text-xs font-bold px-3 py-1.5 rounded-xl transition flex items-center gap-1.5 shadow-sm">
-                                    <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i> Coursera / Online Course
+                        <div class="border-b pb-4 border-emerald-100">
+                            <h2 class="text-xl font-bold text-emerald-600">🎓 Kursus Mandiri (30m)</h2>
+                            <p class="text-xs text-gray-500">Pengembangan skill profesional pribadi</p>
+                        </div>
+
+                        <div class="bg-emerald-50/60 p-5 rounded-2xl border border-emerald-200 space-y-3">
+                            <h3 class="font-bold text-emerald-800 text-sm flex items-center gap-2"><i class="fa-solid fa-compass"></i> Rekomendasi Platform Kursus Gratis:</h3>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                <a href="https://alison.com/courses/virtual-assistant" target="_blank" class="p-3 bg-white rounded-xl border border-emerald-100 hover:border-emerald-300 transition text-xs font-bold text-emerald-700 flex justify-between items-center">
+                                    Alison VA Courses <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
                                 </a>
-                                <span class="bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-1.5 rounded-xl">30 Menit/Hari</span>
+                                <a href="https://www.coursera.org/courses?query=free" target="_blank" class="p-3 bg-white rounded-xl border border-emerald-100 hover:border-emerald-300 transition text-xs font-bold text-emerald-700 flex justify-between items-center">
+                                    Coursera Free Audit <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                                </a>
+                                <a href="https://grow.google/certificates/" target="_blank" class="p-3 bg-white rounded-xl border border-emerald-100 hover:border-emerald-300 transition text-xs font-bold text-emerald-700 flex justify-between items-center">
+                                    Google Digital Garage <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                                </a>
                             </div>
                         </div>
 
-                        <div class="bg-white p-5 rounded-2xl border-2 border-emerald-100 space-y-4">
-                            <h3 class="font-bold text-sm text-gray-700">📌 Catatan Progress Modul Hari Ini (${currentDay}):</h3>
-                            <textarea placeholder="Tuliskan judul modul/materi kursus yang kamu pelajari hari ini..." class="w-full p-3 rounded-xl border-2 border-gray-100 focus:border-emerald-300 focus:ring-0 text-sm h-28"></textarea>
-                            <button onclick="alert('Catatan progress berhasil disimpan!')" class="bg-emerald-500 text-white font-bold px-4 py-2 rounded-xl text-xs hover:bg-emerald-600">Simpan Progress</button>
+                        <div class="bg-white p-4 rounded-2xl border border-emerald-100 space-y-3">
+                            <p class="text-xs font-bold text-gray-700 uppercase">Jurnal Progres Kursus Mandiri:</p>
+                            <input type="text" placeholder="Nama kursus yang sedang kamu ikuti..." class="w-full p-3 border border-emerald-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-300 outline-none">
+                            <textarea rows="3" placeholder="Tuliskan catatan modul yang kamu pelajari hari ini..." class="w-full p-3 border border-emerald-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-300 outline-none"></textarea>
                         </div>
                     </div>
                 `;
             } else if (activeTab === 'va') {
                 container.innerHTML = `
                     <div class="card-cute rounded-3xl p-6 space-y-6">
-                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-3 border-blue-100 gap-2">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b pb-4 border-blue-100">
                             <div>
-                                <h2 class="text-xl font-bold text-gray-800">💼 Praktek Simulasi Virtual Assistant</h2>
-                                <p class="text-xs text-blue-600 font-semibold">Studi Kasus Hari ${currentDay}: ${data.va.sub}</p>
+                                <h2 class="text-xl font-bold text-blue-600">💼 Virtual Assistant Practice Lab</h2>
+                                <p class="text-xs text-gray-500">Simulasi kerja VA profesional harian</p>
                             </div>
-                            <div class="flex items-center gap-2">
-                                <a href="${data.va.sourceUrl}" target="_blank" rel="noopener noreferrer" class="bg-white border-2 border-blue-200 hover:bg-blue-50 text-blue-600 text-xs font-bold px-3 py-1.5 rounded-xl transition flex items-center gap-1.5 shadow-sm">
-                                    <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i> ${data.va.sourceName}
-                                </a>
-                                <span class="bg-blue-100 text-blue-700 text-xs font-bold px-3 py-1.5 rounded-xl">Praktik Dunia Kerja</span>
-                            </div>
+                            <span class="bg-blue-100 text-blue-700 font-bold text-xs px-3 py-1 rounded-full">Fokus Hari Ini: ${data.va.sub}</span>
                         </div>
 
-                        <div class="bg-white p-5 rounded-2xl border-2 border-blue-100 space-y-4">
-                            <div class="bg-blue-50 p-4 rounded-xl border border-blue-200">
-                                <h4 class="font-bold text-blue-800 text-sm mb-1"><i class="fa-solid fa-tasks"></i> Instruksi Tugas Hari Ini:</h4>
-                                <p class="text-sm text-gray-700">${data.va.task}</p>
-                            </div>
+                        <!-- Source Link VA -->
+                        <div class="p-3 bg-blue-50/60 border border-blue-200 rounded-xl flex justify-between items-center">
+                            <span class="text-xs font-bold text-blue-800"><i class="fa-solid fa-screwdriver-wrench"></i> Tool & Source Latihan: ${data.va.sourceName}</span>
+                            <a href="${data.va.sourceUrl}" target="_blank" class="text-xs bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-1.5 rounded-lg transition">Akses Tool <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i></a>
+                        </div>
 
-                            <div>
-                                <div class="flex justify-between items-center mb-2">
-                                    <label class="text-xs font-bold text-gray-600">Draft / Template Email VA (${currentDay}):</label>
-                                    <button onclick="copyToClipboard('${data.va.template.replace(/\n/g, '\\n')}')" class="text-xs bg-blue-100 text-blue-600 px-3 py-1 rounded-xl font-bold hover:bg-blue-200">
-                                        <i class="fa-regular fa-copy"></i> Salin Template
-                                    </button>
-                                </div>
-                                <textarea id="vaTemplateText" class="w-full p-3 rounded-xl border-2 border-gray-100 font-mono text-xs text-gray-700 h-32 focus:border-blue-300">${data.va.template}</textarea>
+                        <!-- Task Simulation -->
+                        <div class="bg-white p-5 rounded-2xl border border-blue-100 space-y-3">
+                            <p class="text-xs font-bold text-blue-600 uppercase"><i class="fa-solid fa-list-check"></i> Instruksi Tugas Simulasi Hari Ini:</p>
+                            <p class="text-sm font-bold text-gray-800">${data.va.task}</p>
+                        </div>
+
+                        <!-- Email Template & Copy Button -->
+                        <div class="bg-gray-800 text-gray-100 p-4 rounded-2xl space-y-3 relative">
+                            <div class="flex justify-between items-center border-b border-gray-700 pb-2">
+                                <span class="text-xs font-bold text-blue-400 font-mono">Draf Template Email</span>
+                                <button onclick="copyToClipboard(\`${data.va.template.replace(/`/g, "\\`")}\`)" class="bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-lg transition active:scale-95 flex items-center gap-1">
+                                    <i class="fa-solid fa-copy"></i> Copy Template
+                                </button>
                             </div>
+                            <pre class="text-xs font-mono whitespace-pre-wrap text-gray-300 leading-relaxed">${data.va.template}</pre>
                         </div>
                     </div>
                 `;
             }
-        }
-
-        function speakText(text) {
-            if ('speechSynthesis' in window) {
-                const utterance = new SpeechSynthesisUtterance(text);
-                utterance.lang = 'en-US';
-                window.speechSynthesis.speak(utterance);
-            } else {
-                alert('Fitur suara tidak didukung di browser ini.');
-            }
-        }
-
-        function checkQuiz(selected, correct, explanation) {
-            const feedback = document.getElementById('quizFeedback');
-            feedback.classList.remove('hidden');
-
-            if (selected === correct) {
-                feedback.className = 'p-4 rounded-xl text-sm font-semibold bg-green-100 text-green-800 border border-green-300';
-                feedback.innerHTML = `🎉 <strong>Benar Sekali!</strong><br>${explanation}`;
-            } else {
-                feedback.className = 'p-4 rounded-xl text-sm font-semibold bg-rose-100 text-rose-800 border border-rose-300';
-                feedback.innerHTML = `❌ <strong>Kurang Tepat!</strong><br>${explanation}`;
-            }
-        }
-
-        function copyToClipboard(text) {
-            const dummy = document.createElement('textarea');
-            document.body.appendChild(dummy);
-            dummy.value = text;
-            dummy.select();
-            document.execCommand('copy');
-            document.body.removeChild(dummy);
-            alert('Template email berhasil disalin ke clipboard!');
         }
     </script>
 </body>
