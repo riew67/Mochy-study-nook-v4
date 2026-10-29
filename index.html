@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mochi Study Space 🐰✨</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Quicksand & Nunito -->
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+    <script>
+    // --- SUPABASE CONFIG & CLOUD SYNC ---
+    const SUPABASE_URL = "https://bfahyqgmqxlktxlycknz.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_C2P-Tk-nHsPkssgkqMVvCQ_1mc02DiD";
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let appState = {
+      streak: 0,
+      lastCheckinDate: null,
+      lastTaskDate: null,
+      tasks: {},
+      courseName: "",
+      courseGoal: "",
+      courseModules: [
+        { text: "Module 1: Introduction to Virtual Assistance", done: false },
+        { text: "Module 2: Client Communication Skills", done: false }
+      ],
+      vaJournal: ""
+    };
+
+    // Helper untuk mendapatkan format YYYY-MM-DD standar lokal
+    function getTodayString() {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
+    // --- ROTASI KONTEN HARIAN (7 HARI BERBEDA SEKALIGUS DI 4 BAGIAN) ---
+    const dailyRotatedContent = [
+      // 0: MINGGU / DAY 0
+      {
+        dayLabel: "Hari Minggu: Review & Professional Growth",
+        english: { sub: "Business Phrases & Review", topic: "Professional Communication", phrase: "Wishing you a relaxing and productive week ahead!", trans: "Semoga minggu Anda menyenangkan dan produktif!", cards: [{ front: "Evaluate", back: "Mengevaluasi / Menilai hasil" }, { front: "Growth", back: "Pertumbuhan / Perkembangan" }, { front: "Strategy", back: "Rencana / Strategi" }] },
+        german: { sub: "Wiederholung (Review Kosakata)", topic: "Review Kosakata", question: "Apa arti dari ungkapan 'Guten Tag'?", opts: [{ text: "Selamat siang / Halo", correct: true }, { text: "Selamat malam", correct: false }, { text: "Sampai jumpa", correct: false }] },
+        va: { sub: "Review Portofolio & Goal Setting", title: "🌟 Simulasi Minggu: Setting Goal & Review Portofolio", desc: "Format evaluasi minggu pribadi:", template: "Weekly Goal Review:\n1. Skill terasah minggu ini: ...\n2. Target minggu depan: ..." }
+      },
+      // 1: SENIN / DAY 1
+      {
+        dayLabel: "Hari Senin: Email & Administration Focus",
+        english: { sub: "Business Email Writing & Follow-up", topic: "Email Outreach B2", phrase: "I am writing to follow up regarding our previous discussion.", trans: "Saya menulis untuk menindaklanjuti diskusi kita sebelumnya.", cards: [{ front: "Acknowledge", back: "Mengonfirmasi / Menerima pesan" }, { front: "Attachment", back: "Lampiran file / Dokumen" }, { front: "Deadline", back: "Batas waktu pengerjaan" }] },
+        german: { sub: "Begrüßung & Sich Vorstellen (Perkenalan Diri)", topic: "Perkenalan A1", question: "___ Name ist Rerie. (Kata kepemilikan 'Saya')", opts: [{ text: "Mein", correct: true }, { text: "Dein", correct: false }, { text: "Sein", correct: false }] },
+        va: { sub: "Handling Inbox & Responding to Client", title: "✉️ Simulasi Senin: Email Follow-Up Klien", desc: "Template menyapa klien di awal minggu:", template: "Subject: Weekly Project Check-in & Updates\n\nHi [Client Name],\n\nI hope you had a great weekend! Reaching out to confirm our weekly priorities..." }
+      },
+      // 2: SELASA / DAY 2
+      {
+        dayLabel: "Hari Selasa: Scheduling & Time Management",
+        english: { sub: "Meeting Scheduling & Confirmations", topic: "Calendar & Appointments", phrase: "Could we reschedule our sync call to Thursday at 2 PM?", trans: "Bisakah kita menggeser jadwal rapat ke hari Kamis jam 2 siang?", cards: [{ front: "Reschedule", back: "Menjadwal ulang waktu" }, { front: "Availability", back: "Ketersediaan waktu" }, { front: "Confirm", back: "Memastikan / Mengonfirmasi" }] },
+        german: { sub: "Zahlen & Uhrzeit (Angka & Jam)", topic: "Waktu & Angka A1", question: "Apa arti dari 'Es ist zwei Uhr'?", opts: [{ text: "Jam 2 tepat", correct: true }, { text: "Jam 12 tepat", correct: false }, { text: "Setengah dua", correct: false }] },
+        va: { sub: "Google Calendar & Timezone Management", title: "📅 Simulasi Selasa: Penjadwalan Rapat Beda Timezone", desc: "Template undangan kalender klien luar negeri:", template: "Subject: Invitation: Weekly Strategy Call @ [Time] EST\n\nHi [Client Name],\n\nScheduled our meeting on Google Calendar for [Date] at [Time] EST." }
+      },
+      // 3: RABU / DAY 3
+      {
+        dayLabel: "Hari Rabu: Data & Task Management",
+        english: { sub: "Spreadsheet & Technical Vocabulary", topic: "Data Analysis Terms", phrase: "Please review the updated spreadsheet before our session.", trans: "Mohon tinjau lembar kerja yang telah diperbarui sebelum sesi kita.", cards: [{ front: "Spreadsheet", back: "Lembar data Excel / Google Sheets" }, { front: "Database", back: "Penyimpanan data terstruktur" }, { front: "Reconcile", back: "Mencocokkan / Menyesuaikan data" }] },
+        german: { sub: "Im Büro (Benda-benda di Kantor)", topic: "Grammar Artikel Der/Die/Das", question: "Artikel kata benda untuk '___ Computer' adalah...", opts: [{ text: "der", correct: true }, { text: "die", correct: false }, { text: "das", correct: false }] },
+        va: { sub: "Trello & Task Board Setup", title: "📋 Simulasi Rabu: Pengelolaan Trello Board Klien", desc: "Struktur standar papan kerja Trello untuk klien:", template: "Columns:\n1. To-Do (Daftar Tugas)\n2. In Progress (Sedang Dikerjakan)\n3. Pending Review (Menunggu Approval)\n4. Completed (Selesai)" }
+      },
+      // 4: KAMIS / DAY 4
+      {
+        dayLabel: "Hari Kamis: Client Relations & Customer Service",
+        english: { sub: "Polite Requests & Customer Service", topic: "Client Communication", phrase: "Please let me know if you need any further assistance with this.", trans: "Beri tahu saya jika Anda memerlukan bantuan lebih lanjut.", cards: [{ front: "Assistance", back: "Bantuan / Dukungan" }, { front: "Appreciate", back: "Menghargai / Berterima kasih" }, { front: "Feedback", back: "Masukan / Tanggapan" }] },
+        german: { sub: "Höflichkeit (Ungkapan Sopan 'Bitte' & 'Danke')", topic: "Percakapan Sopan A1", question: "Terjemahan dari 'Vielen Dank' adalah...", opts: [{ text: "Terima kasih banyak", correct: true }, { text: "Sama-sama", correct: false }, { text: "Maafkan saya", correct: false }] },
+        va: { sub: "Handling Client Feedback & Revisions", title: "🤝 Simulasi Kamis: Menerima Revisi Tugas Klien", desc: "Balasan profesional saat menerima masukan dari klien:", template: "Hi [Client Name],\n\nThank you for the detailed feedback! I have noted all requested changes and will send the updated file shortly." }
+      },
+      // 5: JUMAT / DAY 5
+      {
+        dayLabel: "Hari Jumat: Reports & Weekly Summary",
+        english: { sub: "Weekly Summary & Reporting", topic: "Reporting B2", phrase: "Here is the summary of all tasks completed for this week.", trans: "Berikut adalah ringkasan semua tugas yang selesai minggu ini.", cards: [{ front: "Summary", back: "Ringkasan / Kesimpulan" }, { front: "Deliverable", back: "Hasil kerja / File akhir" }, { front: "Productivity", back: "Produktivitas kerja" }] },
+        german: { sub: "Wochentage & Freizeit (Hari & Waktu Luang)", topic: "Hari Akhir Pekan", question: "Manakah yang berarti 'Hari Jumat' dalam bahasa Jerman?", opts: [{ text: "Freitag", correct: true }, { text: "Montag", correct: false }, { text: "Sonntag", correct: false }] },
+        va: { sub: "Weekly Timesheet & Report Submission", title: "📊 Simulasi Jumat: Mengirim Laporan Mingguan", desc: "Template laporan jam kerja & tugas mingguan ke klien:", template: "Subject: End of Week Report - [Your Name]\n\nHi [Client Name],\n\nSummary of completed tasks this week:\n- Task 1: Done\n- Task 2: Done\nTotal Hours Logged: X Hours." }
+      },
+      // 6: SABTU / DAY 6
+      {
+        dayLabel: "Hari Sabtu: Research & Creative Support",
+        english: { sub: "Market Research & Competitor Check", topic: "Research Vocabulary", phrase: "I have compiled the research data into a clear presentation.", trans: "Saya telah merangkum data riset ke dalam presentasi yang rapi.", cards: [{ front: "Compile", back: "Mengumpulkan / Merangkum" }, { front: "Competitor", back: "Pesaing bisnis" }, { front: "Insight", back: "Wawasan / Temuan penting" }] },
+        german: { sub: "Hobbys & Vorlieben (Hobi & Kesukaan)", topic: "Hobi A1", question: "Apa arti dari 'Ich lese gerne Bücher'?", opts: [{ text: "Saya suka membaca buku", correct: true }, { text: "Saya suka mendengarkan musik", correct: false }, { text: "Saya suka memasak", correct: false }] },
+        va: { sub: "Podcast & Content Creator Research Support", title: "🔍 Simulasi Sabtu: Riset Narasumber Podcast", desc: "Format pencatatan riset narasumber untuk podcaster:", template: "Guest Research Summary:\n- Name: [Guest Name]\n- Topic Specialty: [Niche]\n- Recommended Discussion Questions: 1..., 2..., 3..." }
+      }
+    ];
+
+    function applyDailyRotatedContent() {
+      // Menggunakan modulo berdasarkan jumlah hari kalender terhitung dari Epoch
+      const dayEpoch = Math.floor(Date.now() / 86400000);
+      const dayIdx = (dayEpoch + 3) % dailyRotatedContent.length; // Penyesuaian offset indeks hari
+      const curr = dailyRotatedContent[dayIdx];
+
+      document.getElementById('dailyThemeBadge').innerText = `✨ ${curr.dayLabel}`;
+      document.getElementById('sub-inggris').innerText = curr.english.sub;
+      document.getElementById('sub-jerman').innerText = curr.german.sub;
+      document.getElementById('sub-va').innerText = curr.va.sub;
+
+      document.getElementById('engTopicTag').innerText = curr.english.topic;
+      document.getElementById('engPhraseText').innerText = `"${curr.english.phrase}"`;
+      document.getElementById('engTransText').innerText = `Arti: ${curr.english.trans}`;
+
+      const engCardContainer = document.getElementById('engFlashcardsContainer');
+      engCardContainer.innerHTML = '';
+      curr.english.cards.forEach((card, idx) => {
+        const bgColors = ['from-pink-100 to-purple-100', 'from-purple-100 to-blue-100', 'from-emerald-100 to-yellow-100'];
+        const textColors = ['text-darkPink', 'text-cutePurple', 'text-emerald-700'];
+        const div = document.createElement('div');
+        div.className = `flashcard card-cute p-6 cursor-pointer text-center h-32 flex items-center justify-center bg-gradient-to-br ${bgColors[idx % 3]}`;
+        div.onclick = function() { this.classList.toggle('flipped'); };
+        div.innerHTML = `
+          <div class="flashcard-inner w-full">
+            <div class="flashcard-front font-bold text-base ${textColors[idx % 3]}">${card.front}</div>
+            <div class="flashcard-back text-xs font-semibold text-cuteText">${card.back}</div>
+          </div>
+        `;
+        engCardContainer.appendChild(div);
+      });
+
+      document.getElementById('gerTopicTag').innerText = curr.german.topic;
+      document.getElementById('gerQuizQuestion').innerText = curr.german.question;
+      const gerOptContainer = document.getElementById('gerQuizOptionsContainer');
+      gerOptContainer.innerHTML = '';
+      curr.german.opts.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.className = "px-4 py-2 bg-white border border-purple-200 rounded-xl text-xs font-bold hover:bg-purple-100 mr-2 shadow-sm";
+        btn.onclick = function() { checkAnswer(this, opt.correct); };
+        btn.innerText = opt.text;
+        gerOptContainer.appendChild(btn);
+      });
+
+      document.getElementById('vaTaskTitle').innerText = curr.va.title;
+      document.getElementById('vaTaskDesc').innerText = curr.va.desc;
+      document.getElementById('vaTemplateText').innerText = curr.va.template;
+    }
+
+    async function loadState() {
+      const statusEl = document.getElementById('syncStatus');
+      try {
+        const { data, error } = await supabaseClient
+          .from('user_data')
+          .select('data')
+          .eq('id', 'mochi_study_state')
+          .single();
+
+        if (error && error.code !== 'PGRST116') {
+          console.error("Error loading:", error);
+          statusEl.innerText = "❌ Sync Error";
+          statusEl.classList.remove('connected');
+        } else {
+          if (data && data.data) {
+            appState = Object.assign(appState, data.data);
+          }
+          statusEl.innerText = "☁️ Cloud Connected";
+          statusEl.classList.add('connected');
+
+          checkAndResetDailyTasks();
+          applyDailyRotatedContent();
+          syncUI();
+        }
+      } catch (err) {
+        console.error(err);
+        statusEl.innerText = "❌ Offline";
+      }
+
+      supabaseClient
+        .channel('public:user_data')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'user_data' }, payload => {
+          if (payload.new && payload.new.id === 'mochi_study_state') {
+            appState = payload.new.data;
+            syncUI();
+          }
+        })
+        .subscribe();
+    }
+
+    // AUTO RESET CHECKLIST SAAT TANGGAL BERGANTI
+    function checkAndResetDailyTasks() {
+      const todayStr = getTodayString();
+      if (appState.lastTaskDate !== todayStr) {
+        appState.tasks = {}; // Reset centang checklist untuk hari baru
+        appState.lastTaskDate = todayStr;
+        saveState();
+      }
+    }
+
+    async function saveState() {
+      const statusEl = document.getElementById('syncStatus');
+      statusEl.innerText = "⏳ Saving...";
+
+      const { error } = await supabaseClient
+        .from('user_data')
+        .upsert({ id: 'mochi_study_state', data: appState });
+
+      if (error) {
+        console.error("Error saving:", error);
+        statusEl.innerText = "❌ Save Failed";
+        statusEl.classList.remove('connected');
+      } else {
+        statusEl.innerText = "☁️ Cloud Connected";
+        statusEl.classList.add('connected');
+      }
+      updateDailyProgress();
+    }
+
+    function toggleTask(id) {
+      const el = document.getElementById(id);
+      if (el) {
+        if (!appState.tasks) appState.tasks = {};
+        appState.tasks[id] = el.checked;
+        appState.lastTaskDate = getTodayString();
+        saveState();
+      }
+    }
+
+    function doDailyCheckin() {
+      const todayStr = getTodayString();
+      if (appState.lastCheckinDate === todayStr) {
+        alert("Kamu sudah melakukan absen hari ini! Terus semangat ya! ✨");
+        return;
+      }
+
+      appState.streak = (appState.streak || 0) + 1;
+      appState.lastCheckinDate = todayStr;
+      document.getElementById('streakCount').innerText = appState.streak;
+      saveState();
+      alert("Hore! Absen berhasil. Streak belajar kamu bertambah menjadi " + appState.streak + " hari! 🔥");
+    }
+                    },
+                    fontFamily: {
+                        sans: ['Nunito', 'sans-serif'],
+                        display: ['Quicksand', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #FFE4E8 0%, #E6E6FA 50%, #E8F8F5 100%);
+            min-height: 100vh;
+        }
+        .card-cute {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.9);
+            box-shadow: 0 10px 25px -5px rgba(255, 182, 197, 0.3);
+        }
+        .custom-checkbox:checked {
+            background-color: #FF6B8B;
+            border-color: #FF6B8B;
+        }
+        .flashcard {
+            perspective: 1000px;
+        }
+        .flashcard-inner {
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+        .flashcard.flipped .flashcard-inner {
+            transform: rotateY(180deg);
+        }
+        .flashcard-front, .flashcard-back {
+            backface-visibility: hidden;
+        }
+        .flashcard-back {
+            transform: rotateY(180deg);
+        }
+    </style>
+</head>
+<body class="p-3 md:p-6 text-gray-700 font-sans">
+
+    <div class="max-w-6xl mx-auto space-y-6">
+
+        <!-- SIMULATOR CONTROL BAR (UNTUK TES TESTING ROTASI HARI) -->
+        <div class="bg-white/90 p-4 rounded-2xl shadow-md border-2 border-pink-300 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-2">
+                <span class="p-2 bg-pink-100 text-pink-600 rounded-xl font-bold text-xs uppercase tracking-wider">
+                    <i class="fa-solid fa-calendar-day"></i> Mode Kalender Real-Time
+                </span>
+                <p class="text-xs text-gray-600">Jadwal & materi menyesuaikan hari/tanggal asli saat ini. Tetap bisa pilih hari untuk pratinjau!</p>
+            </div>
+            <div class="flex flex-wrap gap-1.5 justify-center" id="daySelectorContainer">
+                <!-- Days will be dynamically loaded -->
+            </div>
+        </div>
+
+        <!-- HEADER SECTION -->
+        <header class="card-cute rounded-3xl p-5 md:p-6 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-4">
+                <!-- Cute Bunny Avatar -->
+                <div class="w-16 h-16 md:w-20 md:h-20 bg-pink-200 rounded-3xl flex items-center justify-center text-3xl md:text-4xl shadow-inner border-2 border-white">
+                    🐰
+                </div>
+                <div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <h1 class="text-2xl md:text-3xl font-extrabold text-pink-600 font-display">Mochi Study Space</h1>
+                        <span class="bg-green-100 text-green-700 text-xs px-3 py-1 rounded-full font-bold border border-green-300 flex items-center gap-1">
+                            <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> Cloud Connected
+                        </span>
+                    </div>
+                    <p class="text-gray-600 text-sm mt-1">Halo Rerie! Siap belajar 2 jam hari ini untuk capai impianmu? ✨</p>
+                </div>
+            </div>
+
+            <!-- Header Controls & Streak -->
+            <div class="flex items-center gap-3 w-full md:w-auto justify-end">
+                <div class="bg-amber-50 border-2 border-amber-200 rounded-2xl px-4 py-2 text-center">
+                    <div class="text-xs text-amber-600 font-bold uppercase tracking-wider"><i class="fa-solid fa-fire text-amber-500"></i> Streak</div>
+                    <div class="text-xl font-extrabold text-amber-700" id="streakDisplay">0 Hari</div>
+                </div>
+
+                <button onclick="handleAbsen()" class="bg-gradient-to-r from-pink-400 to-rose-400 hover:from-pink-500 hover:to-rose-500 text-white font-bold px-5 py-3 rounded-2xl shadow-lg transition hover:scale-105 active:scale-95 flex items-center gap-2 text-sm">
+                    ✨ Absen Hari Ini
+                </button>
+            </div>
+        </header>
+
+        <!-- CURRENT DAY THEME BANNER -->
+        <div id="dayBanner" class="bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white p-3.5 rounded-2xl shadow-md flex justify-between items-center px-6">
+            <div class="flex items-center gap-3">
+                <i class="fa-regular fa-calendar-check text-xl"></i>
+                <span class="font-bold text-sm md:text-base" id="currentDayTitle">Hari Ini</span>
+            </div>
+            <span class="text-xs bg-white/20 backdrop-blur-md px-3 py-1 rounded-full border border-white/30 font-semibold" id="todayDateBadge">Hari Ini</span>
+        </div>
+
+        <!-- HEADER SECTION -->
+        <header class="card-cute rounded-3xl p-5 md:p-6 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-4">
+                <!-- Cute Bunny Avatar -->
+                <div class="w-16 h-16 md:w-20 md:h-20 bg-pink-200 rounded-3xl flex items-center justify-center text-3xl md:text-4xl shadow-inner border-2 border-white">
+                    🐰
+                </div>
+                <div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <h1 class="text-2xl md:text-3xl font-extrabold text-pink-600 font-display">Mochi Study Space</h1>
+                        <span class="bg-green-100 text-green-700 text-xs px-3 py-1 rounded-full font-bold border border-green-300 flex items-center gap-1">
+                            <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> Cloud Connected
+                        </span>
+                    </div>
+                    <p class="text-gray-600 text-sm mt-1">Halo Rerie! Siap belajar 2 jam hari ini untuk capai impianmu? ✨</p>
+                </div>
+            </div>
+
+            <!-- Header Controls & Streak -->
+            <div class="flex items-center gap-3 w-full md:w-auto justify-end">
+                <div class="bg-amber-50 border-2 border-amber-200 rounded-2xl px-4 py-2 text-center">
+                    <div class="text-xs text-amber-600 font-bold uppercase tracking-wider"><i class="fa-solid fa-fire text-amber-500"></i> Streak</div>
+                    <div class="text-xl font-extrabold text-amber-700" id="streakDisplay">3 Hari</div>
+                </div>
+
+                <button onclick="handleAbsen()" class="bg-gradient-to-r from-pink-400 to-rose-400 hover:from-pink-500 hover:to-rose-500 text-white font-bold px-5 py-3 rounded-2xl shadow-lg transition hover:scale-105 active:scale-95 flex items-center gap-2 text-sm">
+                    ✨ Absen Hari Ini
+                </button>
+            </div>
+        </header>
+
+        <!-- CURRENT DAY THEME BANNER -->
+        <div id="dayBanner" class="bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white p-3.5 rounded-2xl shadow-md flex justify-between items-center px-6">
+            <div class="flex items-center gap-3">
+                <i class="fa-regular fa-calendar-check text-xl"></i>
+                <span class="font-bold text-sm md:text-base" id="currentDayTitle">Hari Jumat: Daily Reporting & Email Follow-up</span>
+            </div>
+            <span class="text-xs bg-white/20 backdrop-blur-md px-3 py-1 rounded-full border border-white/30 font-semibold" id="todayDateBadge">Rotasi Otomatis</span>
+        </div>
+
+        <!-- NAVIGATION TABS -->
+        <nav class="flex overflow-x-auto gap-2 pb-1 scrollbar-none" id="navigationTabs">
+            <!-- Rendered by JavaScript -->
+        </nav>
+
+        <!-- TAB CONTENT AREA -->
+        <main id="tabContentContainer">
+            <!-- Dynamic Content loaded here -->
+        </main>
+
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // DATA MATERIAL UNTUK 7 HARI ROTASI (DENGAN 3 REKOMENDASI SOURCE KHUSUS BAHASA: READING, WRITING, SPEAKING)
+        const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+
+        const weeklyData = {
+            'Senin': {
+                theme: 'Senin: Planning & Email Fundamentals',
+                en: {
+                    sub: 'Business Email Structure & Openings',
+                    sources: [
+                        { type: 'Reading', name: 'BBC Learning English - Email Guides', url: 'https://www.bbc.co.uk/learningenglish/english/features/english-at-work' },
+                        { type: 'Writing', name: 'Cambridge Business Writing', url: 'https://dictionary.cambridge.org/' },
+                        { type: 'Speaking', name: 'British Council Audio & Shadowing', url: 'https://learnenglish.britishcouncil.org/business-english' }
+                    ],
+                    shadowing: 'I am writing to inquire about the status of our upcoming project milestone.',
+                    translation: 'Saya menulis ini untuk menanyakan status dari pencapaian proyek kita mendatang.',
+                    cards: [
+                        { front: 'Inquire', back: 'Menanyakan / Meminta informasi' },
+                        { front: 'Milestone', back: 'Pencapaian / Tahapan penting' },
+                        { front: 'Regarding', back: 'Mengenai / Sehubungan dengan' }
+                    ]
+                },
+                de: {
+                    sub: 'Begrüßung & Sich Vorstellen',
+                    sources: [
+                        { type: 'Reading', name: 'DW Nicos Weg A1 - Text Reader', url: 'https://learngerman.dw.com/de/nicos-weg/c-36519789' },
+                        { type: 'Writing', name: 'Goethe-Institut Schreibübungen', url: 'https://www.goethe.de/' },
+                        { type: 'Speaking', name: 'Easy German Pronunciation & Dialogue', url: 'https://www.youtube.com/@EasyGerman' }
+                    ],
+                    quiz: {
+                        question: 'Hallo! Wie ___ du?',
+                        options: ['heißt', 'heißte', 'heißen', 'heiß'],
+                        answer: 0,
+                        explanation: 'Untuk subjek "du" (kamu), akhiran kata kerja "heißen" adalah "-t" -> heißt.'
+                    }
+                },
+                va: {
+                    sub: 'Menyusun Agenda Mingguan Klien',
+                    sourceName: 'Google Calendar & Timezone Guide',
+                    sourceUrl: 'https://workspace.google.com/products/calendar/',
+                    task: 'Klien meminta jadwal rapat dipadatkan hari Selasa & Kamis. Buatkan draf ringkasnya.',
+                    template: 'Hi [Client Name],\n\nHere is the updated schedule for Tuesday and Thursday as requested...'
+                }
+            },
+            'Selasa': {
+                theme: 'Selasa: Scheduling & Calendar Management',
+                en: {
+                    sub: 'Managing Timezones & Rescheduling',
+                    sources: [
+                        { type: 'Reading', name: 'Business Email Articles', url: 'https://www.bbc.co.uk/learningenglish/' },
+                        { type: 'Writing', name: 'Email Rescheduling Practice', url: 'https://learnenglish.britishcouncil.org/' },
+                        { type: 'Speaking', name: 'Business Conversation Podcasts', url: 'https://www.businessenglishpod.com/' }
+                    ],
+                    shadowing: 'Could we possibly reschedule our meeting to Tuesday at 3 PM EST?',
+                    translation: 'Apakah kita bisa menjadwalkan ulang rapat kita ke hari Selasa jam 3 sore EST?',
+                    cards: [
+                        { front: 'Reschedule', back: 'Menjadwalkan ulang' },
+                        { front: 'Convenient', back: 'Sesuai / Nyaman (waktu)' },
+                        { front: 'Availability', back: 'Ketersediaan waktu' }
+                    ]
+                },
+                de: {
+                    sub: 'Zahlen & Uhrzeiten (Angka & Jam)',
+                    sources: [
+                        { type: 'Reading', name: 'DW Nicos Weg - Uhrzeit Text', url: 'https://learngerman.dw.com/de/nicos-weg/c-36519789' },
+                        { type: 'Writing', name: 'Mein Deutschbuch Grammatik', url: 'https://mein-deutschbuch.de/' },
+                        { type: 'Speaking', name: 'Slow German Audio Series', url: 'https://slowgerman.com/' }
+                    ],
+                    quiz: {
+                        question: 'Wie viel Uhr ist es? (08:00)',
+                        options: ['Es ist acht Uhr', 'Es ist neun Uhr', 'Es ist zwei Uhr', 'Es ist zehn Uhr'],
+                        answer: 0,
+                        explanation: 'Acht artinya delapan. "Es ist acht Uhr" = Jam 8 tepat.'
+                    }
+                },
+                va: {
+                    sub: 'Simulasi Penjadwalan Rapat Lintasan Zona Waktu',
+                    sourceName: 'WorldTimeBuddy Tool',
+                    sourceUrl: 'https://www.worldtimebuddy.com/',
+                    task: 'Undang 3 stakeholder di WIB, EST, dan GMT untuk koordinasi proyek.',
+                    template: 'Hi Team,\n\nI am setting up our sync meeting. Please confirm if 8 AM EST (7 PM WIB) works...'
+                }
+            },
+            'Rabu': {
+                theme: 'Rabu: Data Entry & Travel Booking',
+                en: {
+                    sub: 'Flight & Hotel Reservation Emails',
+                    sources: [
+                        { type: 'Reading', name: 'Travel & Business Booking Guides', url: 'https://dictionary.cambridge.org/' },
+                        { type: 'Writing', name: 'Formal Reservation Emails', url: 'https://www.bbc.co.uk/learningenglish/' },
+                        { type: 'Speaking', name: 'Customer Service Dialogue Drills', url: 'https://learnenglish.britishcouncil.org/' }
+                    ],
+                    shadowing: 'Please confirm the booking details for the flight arriving in Berlin on Wednesday.',
+                    translation: 'Mohon konfirmasi rincian pemesanan penerbangan yang tiba di Berlin pada hari Rabu.',
+                    cards: [
+                        { front: 'Reservation', back: 'Pemesanan' },
+                        { front: 'Itinerary', back: 'Rencana perjalanan' },
+                        { front: 'Accommodation', back: 'Akomodasi / Penginapan' }
+                    ]
+                },
+                de: {
+                    sub: 'Wochentage & Monate',
+                    sources: [
+                        { type: 'Reading', name: 'Goethe-Institut Leseverstehen', url: 'https://www.goethe.de/' },
+                        { type: 'Writing', name: 'Kalender & Tagebuch Schreiben', url: 'https://learngerman.dw.com/' },
+                        { type: 'Speaking', name: 'A1 Aussprache Übungen', url: 'https://www.youtube.com/' }
+                    ],
+                    quiz: {
+                        question: 'Welcher Tag kommt nach Dienstag? (Hari apa setelah Selasa?)',
+                        options: ['Mittwoch', 'Montag', 'Freitag', 'Samstag'],
+                        answer: 0,
+                        explanation: 'Urutan: Montag (Senin), Dienstag (Selasa), Mittwoch (Rabu).'
+                    }
+                },
+                va: {
+                    sub: 'Riset Penerbangan & Akomodasi Bisnis',
+                    sourceName: 'Google Flights & Booking Guide',
+                    sourceUrl: 'https://www.google.com/travel/flights',
+                    task: 'Cari 2 opsi hotel bintang 4 dekat pusat kota Berlin untuk kunjungan bisnis 3 hari.',
+                    template: 'Hi [Client Name],\n\nI have compared 2 hotel options near Berlin city center for your upcoming trip...'
+                }
+            },
+            'Kamis': {
+                theme: 'Kamis: Social Media Management & Invoicing',
+                en: {
+                    sub: 'Professional Tone for Invoice Reminders',
+                    sources: [
+                        { type: 'Reading', name: 'Invoice & Payment Terms Reader', url: 'https://www.businessenglishpod.com/' },
+                        { type: 'Writing', name: 'Polite Reminder Email Drafts', url: 'https://www.bbc.co.uk/learningenglish/' },
+                        { type: 'Speaking', name: 'Negotiation & Payment Calls', url: 'https://learnenglish.britishcouncil.org/' }
+                    ],
+                    shadowing: 'This is a gentle reminder regarding invoice #1042 which was due yesterday.',
+                    translation: 'Ini adalah pengingat ramah mengenai faktur #1042 yang jatuh tempo kemarin.',
+                    cards: [
+                        { front: 'Invoice', back: 'Faktur / Tagihan' },
+                        { front: 'Overdue', back: 'Keterlambatan pembayaran' },
+                        { front: 'Receipt', back: 'Kuitansi / Tanda terima' }
+                    ]
+                },
+                de: {
+                    sub: 'Hobbys & Freizeit',
+                    sources: [
+                        { type: 'Reading', name: 'DW Nicos Weg - Freizeit Artikel', url: 'https://learngerman.dw.com/de/nicos-weg/c-36519789' },
+                        { type: 'Writing', name: 'Satzbau & Dialoge Schreiben', url: 'https://mein-deutschbuch.de/' },
+                        { type: 'Speaking', name: 'Hörverstehen & Monologe', url: 'https://slowgerman.com/' }
+                    ],
+                    quiz: {
+                        question: 'Ich ___ gerne Musik. (Saya suka mendengarkan musik)',
+                        options: ['höre', 'hören', 'hört', 'hoerst'],
+                        answer: 0,
+                        explanation: 'Konjugasi kata kerja "hören" untuk "Ich" adalah "höre".'
+                    }
+                },
+                va: {
+                    sub: 'Drafting Invoice & Pengingat Pembayaran Klien',
+                    sourceName: 'Wave Financial & Invoicing Tips',
+                    sourceUrl: 'https://www.waveapps.com/',
+                    task: 'Buatkan email sopan namun tegas untuk tagihan yang belum dibayar selama 3 hari.',
+                    template: 'Dear [Client Name],\n\nI hope this email finds you well. I am following up on invoice #1042...'
+                }
+            },
+            'Jumat': {
+                theme: 'Jumat: Weekly Reports & Client Follow-up',
+                en: {
+                    sub: 'Business Email Follow-up & Summaries',
+                    sources: [
+                        { type: 'Reading', name: 'BBC Business Summaries', url: 'https://www.bbc.co.uk/learningenglish/' },
+                        { type: 'Writing', name: 'Weekly Progress Email Workshop', url: 'https://learnenglish.britishcouncil.org/' },
+                        { type: 'Speaking', name: 'Audio Shadowing - Reporting', url: 'https://www.businessenglishpod.com/' }
+                    ],
+                    shadowing: 'I am writing to follow up on our previous conversation regarding the weekly progress.',
+                    translation: 'Saya menulis ini untuk menindaklanjuti percakapan kita sebelumnya terkait progres mingguan.',
+                    cards: [
+                        { front: 'Follow-up', back: 'Tindak lanjut' },
+                        { front: 'Summary', back: 'Ringkasan' },
+                        { front: 'Action Item', back: 'Tugas yang harus dikerjakan' }
+                    ]
+                },
+                de: {
+                    sub: 'Essen & Trinken (Makanan & Minuman)',
+                    sources: [
+                        { type: 'Reading', name: 'DW Nicos Weg - Essen Text', url: 'https://learngerman.dw.com/de/nicos-weg/c-36519789' },
+                        { type: 'Writing', name: 'Bestellung & Rezepte Schreiben', url: 'https://www.goethe.de/' },
+                        { type: 'Speaking', name: 'Restaurant Dialoge & Sprechen', url: 'https://www.youtube.com/' }
+                    ],
+                    quiz: {
+                        question: 'Was trinkst du? Ich trinke ___ Wasser.',
+                        options: ['das', 'ein', 'kein', 'der'],
+                        answer: 0,
+                        explanation: 'Wasser memiliki artikel neutrum "das Wasser".'
+                    }
+                },
+                va: {
+                    sub: 'Menulis Email Laporan Mingguan ke Klien',
+                    sourceName: 'HubSpot VA Reporting Templates',
+                    sourceUrl: 'https://www.hubspot.com/',
+                    task: 'Susun laporan singkat memuat 3 tugas selesai dan 2 rencana minggu depan.',
+                    template: 'Hi [Client Name],\n\nHere is a quick summary of what was completed this week:\n1. Completed...'
+                }
+            },
+            'Sabtu': {
+                theme: 'Sabtu: Review & Communication Skills',
+                en: {
+                    sub: 'Handling Customer Inquiries & Complaints',
+                    sources: [
+                        { type: 'Reading', name: 'British Council CS Scenarios', url: 'https://learnenglish.britishcouncil.org/' },
+                        { type: 'Writing', name: 'Polite Complaint Responses', url: 'https://www.bbc.co.uk/learningenglish/' },
+                        { type: 'Speaking', name: 'Call Center Roleplay Audio', url: 'https://www.businessenglishpod.com/' }
+                    ],
+                    shadowing: 'Thank you for bringing this matter to our attention. We apologize for the inconvenience.',
+                    translation: 'Terima kasih telah menyampaikan hal ini kepada kami. Kami mohon maaf atas ketidaknyamanannya.',
+                    cards: [
+                        { front: 'Apologize', back: 'Meminta maaf' },
+                        { front: 'Inconvenience', back: 'Ketidaknyamanan' },
+                        { front: 'Resolve', back: 'Menyelesaikan masalah' }
+                    ]
+                },
+                de: {
+                    sub: 'Familie & Freunde',
+                    sources: [
+                        { type: 'Reading', name: 'Goethe-Institut Familienartikel', url: 'https://www.goethe.de/' },
+                        { type: 'Writing', name: 'Possessivartikel Schreiben', url: 'https://mein-deutschbuch.de/' },
+                        { type: 'Speaking', name: 'Easy German Talking about Family', url: 'https://www.youtube.com/' }
+                    ],
+                    quiz: {
+                        question: 'Das ist ___ Mutter. (Ini adalah ibuku)',
+                        options: ['meine', 'mein', 'meines', 'meinem'],
+                        answer: 0,
+                        explanation: 'Mutter adalah kata benda feminin (die Mutter), jadi menggunakan "meine".'
+                    }
+                },
+                va: {
+                    sub: 'Simulasi Penanganan Komplain Pelanggan',
+                    sourceName: 'Zendesk Customer Service Guide',
+                    sourceUrl: 'https://www.zendesk.com/',
+                    task: 'Balas email pelanggan yang kecewa karena respon lambat dengan format profesional.',
+                    template: 'Dear [Customer Name],\n\nThank you for reaching out. We sincerely apologize for the delay in response...'
+                }
+            },
+            'Minggu': {
+                theme: 'Minggu: Strategic Weekly Planning & Rest',
+                en: {
+                    sub: 'Setting Next Week Objectives in English',
+                    sources: [
+                        { type: 'Reading', name: 'BBC Business Goals Reading', url: 'https://www.bbc.co.uk/learningenglish/' },
+                        { type: 'Writing', name: 'Action Items & Objective Lists', url: 'https://learnenglish.britishcouncil.org/' },
+                        { type: 'Speaking', name: 'Weekly Planning Audio Drills', url: 'https://www.businessenglishpod.com/' }
+                    ],
+                    shadowing: 'Let us outline our primary goals and priority tasks for the upcoming week.',
+                    translation: 'Mari kita uraikan tujuan utama dan tugas prioritas kita untuk minggu depan.',
+                    cards: [
+                        { front: 'Outline', back: 'Menguraikan / Merancang' },
+                        { front: 'Objective', back: 'Tujuan / Target' },
+                        { front: 'Priority', back: 'Prioritas' }
+                    ]
+                },
+                de: {
+                    sub: 'Wiederholung (Evaluasi & Review Grammatik)',
+                    sources: [
+                        { type: 'Reading', name: 'DW Nicos Weg A1 Grammatik Review', url: 'https://learngerman.dw.com/de/nicos-weg/c-36519789' },
+                        { type: 'Writing', name: 'Wochenrückblick Schreiben', url: 'https://mein-deutschbuch.de/' },
+                        { type: 'Speaking', name: 'A1 Audio Self-Check', url: 'https://slowgerman.com/' }
+                    ],
+                    quiz: {
+                        question: 'Wie heißt du? - ___ Name ist Rerie.',
+                        options: ['Mein', 'Meine', 'Dein', 'Ihr'],
+                        answer: 0,
+                        explanation: 'Name adalah Maskulin (der Name), jadi kata ganti kepunyaan "saya" adalah "Mein".'
+                    }
+                },
+                va: {
+                    sub: 'Penyusunan Master Task List & Trello Board',
+                    sourceName: 'Trello Official Workspace Guide',
+                    sourceUrl: 'https://trello.com/guide',
+                    task: 'Atur ulang papan tugas Trello untuk persiapan proyek minggu depan.',
+                    template: 'Hi [Client Name],\n\nI have organized the Trello workspace for next week. Please find the breakdown below...'
+                }
+            }
+        };
+
+        // GLOBAL APP STATE & DATE HELPERS
+        function getTodayInfo() {
+            const now = new Date();
+            const dayName = dayNames[now.getDay()];
+            const dateStr = now.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+            const isoDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            return { dayName, dateStr, isoDate };
+        }
+
+        const todayInfo = getTodayInfo();
+        let currentDay = todayInfo.dayName; // Default ke Hari Kalender Asli
+        let activeTab = 'plan';
+        let streakCount = parseInt(localStorage.getItem('mochi_streak') || '0', 10);
+        let lastAbsenDate = localStorage.getItem('mochi_last_absen') || '';
+        
+        // Checklist state disesuaikan dengan tanggal ISO asli (YYYY-MM-DD)
+        let savedTaskState = JSON.parse(localStorage.getItem('mochi_task_state') || '{}');
+        let taskState = savedTaskState;
+
+        // INITIALIZE APP
+        window.onload = function() {
+            renderDaySelector();
+            updateHeaderAndBanner();
+            renderTabs();
+            renderTabContent();
+        };
+
+        // RENDER DAY SELECTOR TESTER
+        function renderDaySelector() {
+            const container = document.getElementById('daySelectorContainer');
+            const days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+            
+            container.innerHTML = days.map(day => {
+                const isToday = day === todayInfo.dayName;
+                return `
+                <button onclick="switchDay('${day}')" class="px-3 py-1 rounded-xl text-xs font-bold transition flex items-center gap-1 ${currentDay === day ? 'bg-pink-500 text-white shadow' : 'bg-gray-100 hover:bg-pink-100 text-gray-600'}">
+                    ${day} ${isToday ? '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>' : ''}
+                </button>
+            `}).join('');
+        }
+
+        // SWITCH DAY HANDLER
+        function switchDay(day) {
+            currentDay = day;
+            renderDaySelector();
+            updateHeaderAndBanner();
+            renderTabContent();
+        }
+
+        // UPDATE HEADER & BANNER
+        function updateHeaderAndBanner() {
+            const data = weeklyData[currentDay];
+            const isTodaySelected = currentDay === todayInfo.dayName;
+            
+            document.getElementById('currentDayTitle').innerText = `${data.theme} ${isTodaySelected ? '(Hari Ini)' : ''}`;
+            document.getElementById('todayDateBadge').innerText = isTodaySelected ? todayInfo.dateStr : `Pratinjau Hari ${currentDay}`;
+            document.getElementById('streakDisplay').innerText = streakCount + ' Hari';
+        }
+
+        // ABSEN BUTTON CLICK HANDLER (REAL TANGGAL CHECKING & STREAK LOGIC)
+        function handleAbsen() {
+            const currentIso = todayInfo.isoDate;
+
+            if (lastAbsenDate === currentIso) {
+                alert(`✨ Kamu sudah melakukan absen untuk hari ini (${todayInfo.dateStr})!\n\nStreak kamu saat ini: ${streakCount} Hari.`);
+                return;
+            }
+
+            // Hitung rentang hari jika ada terlewat
+            if (lastAbsenDate) {
+                const lastDateObj = new Date(lastAbsenDate);
+                const todayObj = new Date(currentIso);
+                const diffTime = Math.abs(todayObj - lastDateObj);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                if (diffDays === 1) {
+                    streakCount += 1; // Belajar berturut-turut
+                } else if (diffDays > 1) {
+                    alert(`ℹ️ Terdeteksi ada ${diffDays - 1} hari yang terlewat (misal: Kamis tidak belajar). Jangan berkecil hati! Streak di-reset ke 1 Hari dan siap mulai lagi hari ini! 💪✨`);
+                    streakCount = 1;
+                }
+            } else {
+                streakCount = 1;
+            }
+
+            lastAbsenDate = currentIso;
+            localStorage.setItem('mochi_streak', streakCount.toString());
+            localStorage.setItem('mochi_last_absen', lastAbsenDate);
+
+            // Ganti tampilan ke hari ini jika sedang lihat pratinjau
+            currentDay = todayInfo.dayName;
+            renderDaySelector();
+            updateHeaderAndBanner();
+            renderTabContent();
+
+            alert(`🎉 Hore! Absen berhasil untuk hari ini (${todayInfo.dateStr})!\n\nStreak kamu sekarang: ${streakCount} Hari! Tetap semangat! 🔥`);
+        }
+
+        // RENDER TABS
+        function renderTabs() {
+            const tabs = [
+                { id: 'plan', label: '📋 Study Plan (2 Jam)', icon: 'fa-calendar-check' },
+                { id: 'en', label: '🇬🇧 English Lab (30m)', icon: 'fa-language' },
+                { id: 'de', label: '🇩🇪 Deutsch Lab (30m)', icon: 'fa-book-open' },
+                { id: 'course', label: '🎓 Kursus Mandiri (30m)', icon: 'fa-graduation-cap' },
+                { id: 'va', label: '💼 VA Practice (30m)', icon: 'fa-briefcase' }
+            ];
+
+            const nav = document.getElementById('navigationTabs');
+            nav.innerHTML = tabs.map(t => `
+                <button onclick="switchTab('${t.id}')" class="px-4 py-2.5 rounded-2xl font-bold text-sm whitespace-nowrap transition flex items-center gap-2 ${activeTab === t.id ? 'bg-white text-pink-600 shadow-md border-2 border-pink-200' : 'bg-white/50 text-gray-600 hover:bg-white/80'}">
+                    <i class="fa-solid ${t.icon}"></i> ${t.label}
+                </button>
+            `).join('');
+        }
+
+        function switchTab(tabId) {
+            activeTab = tabId;
+            renderTabs();
+            renderTabContent();
+        }
+
+        // TOGGLE CHECKBOX (PERSISTENT BY DATE)
+        function toggleTask(index) {
+            const dateKey = `${todayInfo.isoDate}_${currentDay}`;
+            if (!taskState[dateKey]) {
+                taskState[dateKey] = [false, false, false, false];
+            }
+            taskState[dateKey][index] = !taskState[dateKey][index];
+            localStorage.setItem('mochi_task_state', JSON.stringify(taskState));
+            renderTabContent();
+        }
+
+        // RENDER TAB CONTENT
+        function renderTabContent() {
+            const container = document.getElementById('tabContentContainer');
+            const data = weeklyData[currentDay];
+            const dateKey = `${todayInfo.isoDate}_${currentDay}`;
+            const currentTasks = taskState[dateKey] || [false, false, false, false];
+            const completedCount = currentTasks.filter(Boolean).length;
+            const progressPercent = (completedCount / 4) * 100;
+            const hoursDone = (completedCount * 0.5).toFixed(1);
+
+            if (activeTab === 'plan') {
+                container.innerHTML = `
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- LEFT 2 COLS: CHECKLIST -->
+                        <div class="lg:col-span-2 card-cute rounded-3xl p-6 space-y-5">
+                            <div class="flex justify-between items-center border-b pb-3 border-pink-100">
+                                <div>
+                                    <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                                        ⏱️ Target Rutinitas Belajar (${currentDay})
+                                    </h2>
+                                    <p class="text-xs text-pink-600 font-semibold mt-0.5">Otomatis menyesuaikan tanggal & kalender asli!</p>
+                                </div>
+                                <span class="bg-pink-100 text-pink-700 font-bold text-xs px-3 py-1 rounded-full">
+                                    Total: 2 Jam
+                                </span>
+                            </div>
+
+                            <!-- TASK LIST ITEM 1: ENGLISH -->
+                            <div onclick="toggleTask(0)" class="p-4 rounded-2xl border-2 transition cursor-pointer flex items-center justify-between ${currentTasks[0] ? 'bg-pink-50/80 border-pink-300' : 'bg-white border-gray-100 hover:border-pink-200'}">
+                                <div class="flex items-center gap-3">
+                                    <input type="checkbox" ${currentTasks[0] ? 'checked' : ''} class="w-5 h-5 rounded-lg text-pink-500 focus:ring-pink-400 custom-checkbox cursor-pointer">
+                                    <div>
+                                        <p class="font-bold text-sm text-gray-800 ${currentTasks[0] ? 'line-through text-gray-400' : ''}">🇬🇧 Bahasa Inggris B1 → B2</p>
+                                        <p class="text-xs text-gray-500">Sub: ${data.en.sub}</p>
+                                    </div>
+                                </div>
+                                <span class="text-xs font-bold text-pink-500 bg-pink-100 px-2.5 py-1 rounded-lg">30 Menit</span>
+                            </div>
+
+                            <!-- TASK LIST ITEM 2: GERMAN -->
+                            <div onclick="toggleTask(1)" class="p-4 rounded-2xl border-2 transition cursor-pointer flex items-center justify-between ${currentTasks[1] ? 'bg-purple-50/80 border-purple-300' : 'bg-white border-gray-100 hover:border-purple-200'}">
+                                <div class="flex items-center gap-3">
+                                    <input type="checkbox" ${currentTasks[1] ? 'checked' : ''} class="w-5 h-5 rounded-lg text-purple-500 focus:ring-purple-400 custom-checkbox cursor-pointer">
+                                    <div>
+                                        <p class="font-bold text-sm text-gray-800 ${currentTasks[1] ? 'line-through text-gray-400' : ''}">🇩🇪 Bahasa Jerman A1</p>
+                                        <p class="text-xs text-gray-500">Sub: ${data.de.sub}</p>
+                                    </div>
+                                </div>
+                                <span class="text-xs font-bold text-purple-500 bg-purple-100 px-2.5 py-1 rounded-lg">30 Menit</span>
+                            </div>
+
+                            <!-- TASK LIST ITEM 3: KURSUS -->
+                            <div onclick="toggleTask(2)" class="p-4 rounded-2xl border-2 transition cursor-pointer flex items-center justify-between ${currentTasks[2] ? 'bg-emerald-50/80 border-emerald-300' : 'bg-white border-gray-100 hover:border-emerald-200'}">
+                                <div class="flex items-center gap-3">
+                                    <input type="checkbox" ${currentTasks[2] ? 'checked' : ''} class="w-5 h-5 rounded-lg text-emerald-500 focus:ring-emerald-400 custom-checkbox cursor-pointer">
+                                    <div>
+                                        <p class="font-bold text-sm text-gray-800 ${currentTasks[2] ? 'line-through text-gray-400' : ''}">🎓 Kursus Mandiri Pilihanmu</p>
+                                        <p class="text-xs text-gray-500">Sub: Pelajari 1 Modul/Bab sesuai modul hari ini</p>
+                                    </div>
+                                </div>
+                                <span class="text-xs font-bold text-emerald-600 bg-emerald-100 px-2.5 py-1 rounded-lg">30 Menit</span>
+                            </div>
+
+                            <!-- TASK LIST ITEM 4: VA -->
+                            <div onclick="toggleTask(3)" class="p-4 rounded-2xl border-2 transition cursor-pointer flex items-center justify-between ${currentTasks[3] ? 'bg-blue-50/80 border-blue-300' : 'bg-white border-gray-100 hover:border-blue-200'}">
+                                <div class="flex items-center gap-3">
+                                    <input type="checkbox" ${currentTasks[3] ? 'checked' : ''} class="w-5 h-5 rounded-lg text-blue-500 focus:ring-blue-400 custom-checkbox cursor-pointer">
+                                    <div>
+                                        <p class="font-bold text-sm text-gray-800 ${currentTasks[3] ? 'line-through text-gray-400' : ''}">💼 Praktek Simulasi Virtual Assistant</p>
+                                        <p class="text-xs text-gray-500">Sub: ${data.va.sub}</p>
+                                    </div>
+                                </div>
+                                <span class="text-xs font-bold text-blue-500 bg-blue-100 px-2.5 py-1 rounded-lg">30 Menit</span>
+                            </div>
+
+                            <!-- PROGRESS BAR -->
+                            <div class="pt-2 space-y-1.5">
+                                <div class="flex justify-between text-xs font-bold text-gray-600">
+                                    <span>Progress Belajar (${currentDay})</span>
+                                    <span>${hoursDone} / 2 Jam (${Math.round(progressPercent)}%)</span>
+                                </div>
+                                <div class="w-full h-4 bg-gray-100 rounded-full overflow-hidden p-0.5 border">
+                                    <div class="h-full bg-gradient-to-r from-pink-400 to-rose-500 rounded-full transition-all duration-500" style="width: ${progressPercent}%"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- RIGHT 1 COL: TIMER & QUICK QUOTE -->
+                        <div class="space-y-6">
+                            <div class="card-cute rounded-3xl p-6 text-center space-y-4">
+                                <h3 class="font-bold text-gray-700 flex items-center justify-center gap-2">
+                                    ⏱️ Timer Sesi 30 Menit
+                                </h3>
+                                <p class="text-xs text-gray-500">Fokus tanpa distrasi selama 30 menit!</p>
+                                
+                                <div class="w-36 h-36 mx-auto rounded-full border-8 border-pink-200 flex items-center justify-center bg-white shadow-inner">
+                                    <span class="text-3xl font-extrabold text-pink-600 font-display">30:00</span>
+                                </div>
+
+                                <div class="flex justify-center gap-2 pt-2">
+                                    <button class="bg-pink-500 text-white font-bold px-4 py-2 rounded-xl text-xs shadow hover:bg-pink-600">Start</button>
+                                    <button class="bg-purple-100 text-purple-700 font-bold px-4 py-2 rounded-xl text-xs hover:bg-purple-200">Pause</button>
+                                    <button class="bg-gray-100 text-gray-600 font-bold px-4 py-2 rounded-xl text-xs hover:bg-gray-200">Reset</button>
+                                </div>
+                            </div>
+
+                            <div class="bg-gradient-to-br from-purple-100 to-pink-100 p-5 rounded-3xl border border-white text-center">
+                                <p class="text-xs text-purple-800 font-medium italic">"Terlewati satu hari bukan masalah! Yang terpenting kamu kembali belajar hari ini."</p>
+                                <span class="text-[10px] text-pink-600 font-bold mt-2 block">— Mochi Rabbit 🐰</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (activeTab === 'en') {
+                container.innerHTML = `
+                    <div class="card-cute rounded-3xl p-6 space-y-6">
+                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-3 border-pink-100 gap-2">
+                            <div>
+                                <h2 class="text-xl font-bold text-gray-800">🇬🇧 English Lab (${currentDay})</h2>
+                                <p class="text-xs text-pink-600 font-semibold">Sub-Topik: ${data.en.sub}</p>
+                            </div>
+                            <span class="bg-pink-100 text-pink-700 text-xs font-bold px-3 py-1.5 rounded-xl">Level B1 → B2</span>
+                        </div>
+
+                        <!-- 3 REKOMENDASI SOURCE KHUSUS BAHASA (READING, WRITING, SPEAKING) -->
+                        <div>
+                            <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2"><i class="fa-solid fa-compass text-pink-500"></i> 3 Sumber Rekomendasi Belajar Hari Ini</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                ${data.en.sources.map(s => `
+                                    <a href="${s.url}" target="_blank" rel="noopener noreferrer" class="p-3 bg-white border-2 border-pink-100 hover:border-pink-300 rounded-2xl transition flex items-center justify-between group shadow-sm">
+                                        <div>
+                                            <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-pink-100 text-pink-600 uppercase">${s.type}</span>
+                                            <p class="text-xs font-bold text-gray-800 mt-1 line-clamp-1 group-hover:text-pink-600 transition">${s.name}</p>
+                                        </div>
+                                        <i class="fa-solid fa-arrow-up-right-from-square text-pink-400 text-xs group-hover:translate-x-0.5 transition"></i>
+                                    </a>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <!-- SHADOWING SECTION -->
+                        <div class="bg-white p-5 rounded-2xl border-2 border-pink-100 space-y-3">
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs font-bold text-pink-500 uppercase tracking-wider"><i class="fa-solid fa-volume-high"></i> Kalimat Shadowing Hari Ini</span>
+                                <button onclick="speakText('${data.en.shadowing}')" class="text-xs bg-pink-100 text-pink-600 px-3 py-1 rounded-xl font-bold hover:bg-pink-200">
+                                    <i class="fa-solid fa-play"></i> Putar Suara
+                                </button>
+                            </div>
+                            <p class="text-lg font-bold text-gray-800 italic">"${data.en.shadowing}"</p>
+                            <p class="text-sm text-gray-500">Arti: "${data.en.translation}"</p>
+                        </div>
+
+                        <!-- FLASHCARDS SECTION -->
+                        <div>
+                            <h3 class="text-sm font-bold text-gray-700 mb-3"><i class="fa-solid fa-clone text-pink-500"></i> Flashcards Kosakata (${currentDay}) - Klik kartu untuk balik</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                ${data.en.cards.map((c, i) => `
+                                    <div onclick="this.classList.toggle('flipped')" class="flashcard h-32 cursor-pointer">
+                                        <div class="flashcard-inner relative w-full h-full rounded-2xl shadow-sm border-2 border-pink-200">
+                                            <div class="flashcard-front absolute inset-0 bg-white rounded-2xl flex flex-col items-center justify-center p-4 text-center">
+                                                <span class="text-xs text-gray-400 font-bold mb-1">KATA #${i+1}</span>
+                                                <span class="text-lg font-bold text-pink-600">${c.front}</span>
+                                            </div>
+                                            <div class="flashcard-back absolute inset-0 bg-gradient-to-br from-pink-500 to-rose-400 text-white rounded-2xl flex flex-col items-center justify-center p-4 text-center">
+                                                <span class="text-xs opacity-80 font-bold mb-1">ARTI</span>
+                                                <span class="text-sm font-extrabold">${c.back}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (activeTab === 'de') {
+                container.innerHTML = `
+                    <div class="card-cute rounded-3xl p-6 space-y-6">
+                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-3 border-purple-100 gap-2">
+                            <div>
+                                <h2 class="text-xl font-bold text-gray-800">🇩🇪 Deutsch Lab (${currentDay})</h2>
+                                <p class="text-xs text-purple-600 font-semibold">Sub-Topik: ${data.de.sub}</p>
+                            </div>
+                            <span class="bg-purple-100 text-purple-700 text-xs font-bold px-3 py-1.5 rounded-xl">Level A1</span>
+                        </div>
+
+                        <!-- 3 REKOMENDASI SOURCE KHUSUS BAHASA (READING, WRITING, SPEAKING) -->
+                        <div>
+                            <h3 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2"><i class="fa-solid fa-compass text-purple-500"></i> 3 Sumber Rekomendasi Belajar Hari Ini</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                ${data.de.sources.map(s => `
+                                    <a href="${s.url}" target="_blank" rel="noopener noreferrer" class="p-3 bg-white border-2 border-purple-100 hover:border-purple-300 rounded-2xl transition flex items-center justify-between group shadow-sm">
+                                        <div>
+                                            <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-purple-100 text-purple-600 uppercase">${s.type}</span>
+                                            <p class="text-xs font-bold text-gray-800 mt-1 line-clamp-1 group-hover:text-purple-600 transition">${s.name}</p>
+                                        </div>
+                                        <i class="fa-solid fa-arrow-up-right-from-square text-purple-400 text-xs group-hover:translate-x-0.5 transition"></i>
+                                    </a>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <!-- GERMAN QUIZ SECTION -->
+                        <div class="bg-white p-6 rounded-2xl border-2 border-purple-100 space-y-4">
+                            <span class="text-xs font-bold text-purple-600 uppercase tracking-wider"><i class="fa-solid fa-circle-question"></i> Kuis Latihan Hari ${currentDay}</span>
+                            <h3 class="text-lg font-bold text-gray-800">${data.de.quiz.question}</h3>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3" id="quizOptions">
+                                ${data.de.quiz.options.map((opt, idx) => `
+                                    <button onclick="checkQuiz(${idx}, ${data.de.quiz.answer}, '${data.de.quiz.explanation}')" class="p-3 rounded-xl border-2 border-gray-100 hover:border-purple-300 font-bold text-left text-sm text-gray-700 hover:bg-purple-50 transition">
+                                        ${String.fromCharCode(65 + idx)}. ${opt}
+                                    </button>
+                                `).join('')}
+                            </div>
+
+                            <div id="quizFeedback" class="hidden p-4 rounded-xl text-sm font-semibold"></div>
+                        </div>
+                    </div>
+                `;
+            } else if (activeTab === 'course') {
+                container.innerHTML = `
+                    <div class="card-cute rounded-3xl p-6 space-y-6">
+                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-3 border-emerald-100 gap-2">
+                            <div>
+                                <h2 class="text-xl font-bold text-gray-800">🎓 Kursus Mandiri Pilihanmu</h2>
+                                <p class="text-xs text-emerald-600 font-semibold">Catat & selesaikan modul belajar pilihanmu hari ini</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <a href="https://www.coursera.org" target="_blank" rel="noopener noreferrer" class="bg-white border-2 border-emerald-200 hover:bg-emerald-50 text-emerald-600 text-xs font-bold px-3 py-1.5 rounded-xl transition flex items-center gap-1.5 shadow-sm">
+                                    <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i> Coursera / Online Course
+                                </a>
+                                <span class="bg-emerald-100 text-emerald-700 text-xs font-bold px-3 py-1.5 rounded-xl">30 Menit/Hari</span>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-5 rounded-2xl border-2 border-emerald-100 space-y-4">
+                            <h3 class="font-bold text-sm text-gray-700">📌 Catatan Progress Modul Hari Ini (${currentDay}):</h3>
+                            <textarea placeholder="Tuliskan judul modul/materi kursus yang kamu pelajari hari ini..." class="w-full p-3 rounded-xl border-2 border-gray-100 focus:border-emerald-300 focus:ring-0 text-sm h-28"></textarea>
+                            <button onclick="alert('Catatan progress berhasil disimpan!')" class="bg-emerald-500 text-white font-bold px-4 py-2 rounded-xl text-xs hover:bg-emerald-600">Simpan Progress</button>
+                        </div>
+                    </div>
+                `;
+            } else if (activeTab === 'va') {
+                container.innerHTML = `
+                    <div class="card-cute rounded-3xl p-6 space-y-6">
+                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-3 border-blue-100 gap-2">
+                            <div>
+                                <h2 class="text-xl font-bold text-gray-800">💼 Praktek Simulasi Virtual Assistant</h2>
+                                <p class="text-xs text-blue-600 font-semibold">Studi Kasus Hari ${currentDay}: ${data.va.sub}</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <a href="${data.va.sourceUrl}" target="_blank" rel="noopener noreferrer" class="bg-white border-2 border-blue-200 hover:bg-blue-50 text-blue-600 text-xs font-bold px-3 py-1.5 rounded-xl transition flex items-center gap-1.5 shadow-sm">
+                                    <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i> ${data.va.sourceName}
+                                </a>
+                                <span class="bg-blue-100 text-blue-700 text-xs font-bold px-3 py-1.5 rounded-xl">Praktik Dunia Kerja</span>
+                            </div>
+                        </div>
+
+                        <!-- SIMULASI VA TASK -->
+                        <div class="bg-white p-5 rounded-2xl border-2 border-blue-100 space-y-4">
+                            <div class="bg-blue-50 p-4 rounded-xl border border-blue-200">
+                                <h4 class="font-bold text-blue-800 text-sm mb-1"><i class="fa-solid fa-tasks"></i> Instruksi Tugas Hari Ini:</h4>
+                                <p class="text-sm text-gray-700">${data.va.task}</p>
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between items-center mb-2">
+                                    <label class="text-xs font-bold text-gray-600">Draft / Template Email VA (${currentDay}):</label>
+                                    <button onclick="copyToClipboard('${data.va.template.replace(/\n/g, '\\n')}')" class="text-xs bg-blue-100 text-blue-600 px-3 py-1 rounded-xl font-bold hover:bg-blue-200">
+                                        <i class="fa-regular fa-copy"></i> Salin Template
+                                    </button>
+                                </div>
+                                <textarea id="vaTemplateText" class="w-full p-3 rounded-xl border-2 border-gray-100 font-mono text-xs text-gray-700 h-32 focus:border-blue-300">${data.va.template}</textarea>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // TEXT TO SPEECH FOR ENGLISH
+        function speakText(text) {
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'en-US';
+                window.speechSynthesis.speak(utterance);
+            } else {
+                alert('Fitur suara tidak didukung di browser ini.');
+            }
+        }
+
+        // QUIZ CHECKER
+        function checkQuiz(selected, correct, explanation) {
+            const feedback = document.getElementById('quizFeedback');
+            feedback.classList.remove('hidden');
+
+            if (selected === correct) {
+                feedback.className = 'p-4 rounded-xl text-sm font-semibold bg-green-100 text-green-800 border border-green-300';
+                feedback.innerHTML = `🎉 <strong>Benar Sekali!</strong><br>${explanation}`;
+            } else {
+                feedback.className = 'p-4 rounded-xl text-sm font-semibold bg-rose-100 text-rose-800 border border-rose-300';
+                feedback.innerHTML = `❌ <strong>Kurang Tepat!</strong><br>${explanation}`;
+            }
+        }
+
+        // COPY TO CLIPBOARD SAFE FOR IFRAME
+        function copyToClipboard(text) {
+            const dummy = document.createElement('textarea');
+            document.body.appendChild(dummy);
+            dummy.value = text;
+            dummy.select();
+            document.execCommand('copy');
+            document.body.removeChild(dummy);
+            alert('Template email berhasil disalin ke clipboard!');
+        }
+    </script>
+</body>
+</html>
